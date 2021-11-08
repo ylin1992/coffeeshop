@@ -179,8 +179,21 @@ def delete_drink(drink_id):
 '''
 Example error handling for unprocessable entity
 '''
-
-
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({
+        'success': False,
+        'error': 400,
+        'message': 'Bad request'
+    }), 400
+    
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 404,
+        'message': 'Data not found'
+    }), 404
 
 @app.errorhandler(422)
 def unprocessable(error):
