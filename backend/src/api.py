@@ -31,9 +31,6 @@ CORS(app)
 '''
 @app.route('/drinks', methods=['GET'])
 def get_drinks():
-    '''
-        @TODO: error handler 404
-    '''
     try:
         drinks = Drink.query.all()
     except Exception as e:
@@ -186,13 +183,13 @@ def bad_request(error):
         'error': 400,
         'message': 'Bad request'
     }), 400
-    
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({
         'success': False,
         'error': 404,
-        'message': 'Data not found'
+        'message': 'Resource not found'
     }), 404
 
 @app.errorhandler(422)
@@ -203,7 +200,13 @@ def unprocessable(error):
         "message": "unprocessable"
     }), 422
 
-
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        'success': False,
+        'error': 500,
+        'message': 'Internal error'
+    }), 500
 '''
 @TODO implement error handlers using the @app.errorhandler(error) decorator
     each error handler should return (with approprate messages):

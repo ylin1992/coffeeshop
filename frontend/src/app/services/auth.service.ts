@@ -72,6 +72,7 @@ export class AuthService {
     this.token = '';
     this.payload = null;
     this.set_jwt();
+    window.location.replace("https://dev-66yc13b2.us.auth0.com/v2/logout?client_id=6rDz8i0pTeqKwNpFX2ZkY02rlSKIsVSo");
   }
 
   can(permission: string) {
