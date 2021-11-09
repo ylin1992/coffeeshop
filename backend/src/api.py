@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
 from flask_cors import CORS
+from sqlalchemy.sql.base import _DialectArgView
 
 from .database.models import db_drop_and_create_all, setup_db, Drink
 from .auth.auth import AuthError, requires_auth
@@ -55,7 +56,8 @@ def get_drinks():
 '''
 
 @app.route('/drinks-detail')
-def get_drinks_detail():
+@requires_auth('get:drinks-detail')
+def get_drinks_detail(jwt):
     '''
         @TODO: add permissions
     '''
@@ -84,15 +86,20 @@ def get_drinks_detail():
 '''
 
 @app.route('/drinks', methods=['POST'])
-def create_new_drink():
+@requires_auth('post:drinks')
+def create_new_drink(jwt):
     '''
         recipe is in the form of str( '[{...},{...}]')
         @TODO: add permissions
     '''
-    para = request.args
-    title = para.get('title')
-    recipe = para.get('recipe')
-    print(title, recipe)
+    para = request.get_json()
+    print(request.get_json())
+    if para is None:
+        abort(400)
+    title = para['title'] if 'title' in para else None
+    recipe = json.dumps(para['recipe']) if 'recipe' in para else None
+    print("title: ", title)
+    print("recipe: ", recipe)
     if title is None or recipe is None:
         abort(400)
 
@@ -119,7 +126,8 @@ def create_new_drink():
         or appropriate status code indicating reason for failure
 '''
 @app.route('/drinks/<int:drink_id>', methods=['PATCH'])
-def update_drinkby_id(drink_id):
+@requires_auth('patch:drinks')
+def update_drinkby_id(jwt, drink_id):
     '''
         @TODO: add permissions
     '''
@@ -128,16 +136,16 @@ def update_drinkby_id(drink_id):
         abort(404)
     print(drink.long())
 
-    data = request.args.to_dict()
+    data = request.get_json()
     print(data)
+    if ('title' not in data and 'recipe' not in data):
+        abort(400)
     try:
         for k in data:
             if k == 'title':
                 drink.title = data[k]
             elif k == 'recipe':
-                drink.recipe = data[k]
-            else:
-                abort(400)
+                drink.recipe = json.dumps(data[k])
         drink.update()
     except Exception as e:
         print(e)
@@ -157,7 +165,8 @@ def update_drinkby_id(drink_id):
         or appropriate status code indicating reason for failure
 '''
 @app.route('/drinks/<int:drink_id>', methods=['DELETE'])
-def delete_drink(drink_id):
+@requires_auth('delete:drinks')
+def delete_drink(jwt, drink_id):
     drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
     if drink is None:
         abort(404)
@@ -229,3 +238,17 @@ def internal_error(error):
     error handler should conform to general task above
 '''
 
+@app.errorhandler(401)
+def unauthorized(error):
+    return jsonify({
+        "success": False,
+        "error": 401,
+        "message": "unauthorized"
+    }), 401
+
+@app.errorhandler(AuthError)
+def process_AuthError(error):
+    res = jsonify(error.error)
+    res.status_code = error.status_code
+
+    return res

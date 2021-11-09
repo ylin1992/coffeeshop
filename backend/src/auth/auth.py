@@ -3,11 +3,12 @@ from flask import request, _request_ctx_stack, abort
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
-
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 AUTH0_DOMAIN = 'dev-66yc13b2.us.auth0.com'
 ALGORITHMS = ['RS256']
-API_AUDIENCE = 'coffee'
+API_AUDIENCE = 'coffeeshop'
 
 ## AuthError Exception
 '''
@@ -77,7 +78,7 @@ def check_permissions(permission, payload):
     if permission not in payload['permissions']:
         raise AuthError({
             'code': 'permission_denied',
-            'description': 'Does not have authorization to the action".'
+            'description': 'Does not have authorization to the action.'
         }, 403)
 
 '''
@@ -103,8 +104,9 @@ def verify_decode_jwt(token):
             'code': 'invalid_header',
             'description': 'Authorization malformed.'
         }, 401)
-
     for key in jwks['keys']:
+        print("jkwks[key]: ", key['kid'])
+        print("unverified_headers[key]: ", unverified_header['kid'])
         if key['kid'] == unverified_header['kid']:
             rsa_key = {
                 'kty': key['kty'],
@@ -113,6 +115,7 @@ def verify_decode_jwt(token):
                 'n': key['n'],
                 'e': key['e']
             }
+    print("rsa_key:", rsa_key)
     if rsa_key:
         try:
             payload = jwt.decode(
@@ -156,12 +159,18 @@ def verify_decode_jwt(token):
     it should use the check_permissions method validate claims and check the requested permission
     return the decorator which passes the decoded payload to the decorated method
 '''
+
 def requires_auth(permission=''):
     def requires_auth_decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
             token = get_token_auth_header()
-            payload = verify_decode_jwt(token)
+            try:
+                payload = verify_decode_jwt(token)
+            except Exception as e:
+                print(e)
+                abort(401)
+            
             check_permissions(permission, payload)
             return f(payload, *args, **kwargs)
 
